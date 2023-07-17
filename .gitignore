@@ -1,0 +1,57 @@
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Compiled binary addons
+build/Release
+
+# Output of 'npm run build'
+dist/
+
+# dotenv environment variables file
+.env
+
+# macOS
+.DS_Store
+
+# JetBrains IDEs
+.idea/
+*.iml
+out/
+
+# Visual Studio Code
+.vscode/
+
+# Node.js debugging
+node_modules/
+.nyc_output/
+
+# Yarn
+yarn-error.log
+yarn.lock
+
+# Dependency directory used by bundlers
+/.pnp/
+.pnp.js
+
+# End-to-end testing
+cypress/screenshots/
+cypress/videos/
+
+# Build directories
+/.circleci/
+/.github/
+/build/
