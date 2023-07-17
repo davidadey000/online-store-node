@@ -1,11 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
+const authorize = require("../middleware/authorize");
 const { Cart, validateCartProduct, validateProductQuantity } = require("../models/cart");
 const { Product } = require("../models/product");
 
 // Remove Product from Cart
-router.delete("/cart/products/:productId", auth, async (req, res) => {
+router.delete("/cart/:productId", auth, authorize.admin, async (req, res) => {
   const cart = await Cart.findOne({ user: req.user._id });
 
   if (!cart) {
@@ -37,12 +38,21 @@ router.get("/cart/", auth, async (req, res) => {
 });
 
 // Add Product to Cart
-router.post("/cart/products", auth, async (req, res) => {
+router.post("/cart/", auth, async (req, res) => {
   const { error } = validateCartProduct(req.body);
   if (error) {
     return res.status(400).send(error.details[0].message);
   }
   const { productId, quantity } = req.body;
+
+  const productData = await Product.findById(productId);
+  if (!productData) {
+    return res.status(400).send(`Product with ID ${productId} not found`);
+  }
+
+  if (quantity > productData.numberInStock) {
+    return res.status(400).send("Requested quantity exceeds available stock");
+  }
 
   let cart = await Cart.findOne({ user: req.user._id });
 
@@ -71,8 +81,9 @@ router.post("/cart/products", auth, async (req, res) => {
   res.send(cart);
 });
 
+
 // Update Product Quantity in Cart
-router.put("/cart/products/:productId", auth, async (req, res) => {
+router.put("/cart/:productId", auth, async (req, res) => {
   const { error } = validateProductQuantity(req.body);
   if (error) {
     return res.status(400).send(error.details[0].message);

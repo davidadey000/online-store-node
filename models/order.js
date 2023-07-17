@@ -35,7 +35,6 @@ const Order = mongoose.model("Order", orderSchema);
 
 function validateOrder(order) {
   const schema = Joi.object({
-    user: Joi.string().required(),
     products: Joi.array()
       .items(
         Joi.object({
