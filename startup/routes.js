@@ -3,8 +3,9 @@ const users = require("../routes/users");
 const auth = require("../routes/auth");
 const products = require("../routes/products");
 const categories = require("../routes/categories");
-const carts = require("../routes/carts")
-const orders = require("../routes/orders")
+const carts = require("../routes/carts");
+const orders = require("../routes/orders");
+const wishlists = require("../routes/wishlists");
 const error = require("../middleware/error");
 
 module.exports = function (app) {
@@ -15,6 +16,7 @@ module.exports = function (app) {
   app.use("/api/products", products);
   app.use("/api/categories", categories);
   app.use("/api/carts", carts);
-  app.use("/api/orders", orders)
+  app.use("/api/orders", orders);
+  app.use("/api/wishlists", wishlists);
   app.use(error);
 };

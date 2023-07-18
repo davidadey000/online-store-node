@@ -8,94 +8,82 @@ const { Product } = require("../models/product");
 
 // Place Order
 router.post("/", auth, async (req, res) => {
-    // Fetch the user's cart
-    const cart = await Cart.findOne({ user: req.user._id });
+  // Fetch the user's cart
+  const cart = await Cart.findOne({ user: req.user._id });
 
-    if (!cart) {
-      return res.status(404).send("Cart not found");
+  if (!cart) {
+    return res.status(404).send("Cart not found");
+  }
+
+  // Check if the cart's products array is empty
+  if (cart.products.length === 0) {
+    return res.status(400).send("Cart is empty");
+  }
+
+  // Extract the products from the cart
+  const products = cart.products;
+
+  // Calculate the total amount based on the cart contents
+  let totalAmount = 0;
+  for (const product of products) {
+    const { productId, quantity } = product;
+    const productData = await Product.findById(productId);
+    if (!productData) {
+      return res.status(400).send(`Product with ID ${productId} not found`);
     }
+    totalAmount += productData.price * quantity;
 
-    // Check if the cart's products array is empty
-    if (cart.products.length === 0) {
-      return res.status(400).send("Cart is empty");
-    }
+    // Subtract the order quantity from the product quantity
+    productData.numberInStock -= quantity;
+    await productData.save();
+  }
 
-    // Extract the products from the cart
-    const products = cart.products;
+  // Create a new order
+  const order = new Order({
+    user: req.user._id,
+    products,
+    totalAmount,
+  });
 
-    // Calculate the total amount based on the cart contents
-    let totalAmount = 0;
-    for (const product of products) {
-      const { productId, quantity } = product;
-      const productData = await Product.findById(productId);
-      if (!productData) {
-        return res.status(400).send(`Product with ID ${productId} not found`);
-      }
-      totalAmount += productData.price * quantity;
+  // Save the order to the database
+  await order.save();
 
-      // Subtract the order quantity from the product quantity
-      productData.numberInStock -= quantity;
-      await productData.save();
-    }
+  // Clear the user's cart
+  cart.products = [];
+  await cart.save();
 
-    // Create a new order
-    const order = new Order({
-      user: req.user._id,
-      products,
-      totalAmount,
-    });
-
-    // Save the order to the database
-    await order.save();
-
-    // Clear the user's cart
-    cart.products = [];
-    await cart.save();
-
-    res.send(order);
- 
+  res.send(order);
 });
 
 // Get all orders for a user
 router.get("/", auth, async (req, res) => {
-  try {
-    const orders = await Order.find({ user: req.user._id }).sort({
-      createdAt: -1,
-    });
+  const orders = await Order.find({ user: req.user._id }).populate("products.productId", "title price imageUrl").sort({
+    createdAt: -1,
+  });
 
-    res.send(orders);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("An error occurred while fetching the orders");
-  }
+  res.send(orders);
 });
 
 // Delete an order
 router.delete("/:orderId", auth, authorize.admin, async (req, res) => {
-  try {
-    const orderId = req.params.orderId;
+  const orderId = req.params.orderId;
 
-    // Find the order by ID and ensure it belongs to the authenticated user
-    const order = await Order.findOneAndDelete({
-      _id: orderId,
-      user: req.user._id,
-    });
+  // Find the order by ID and ensure it belongs to the authenticated user
+  const order = await Order.findOneAndDelete({
+    _id: orderId,
+    user: req.user._id,
+  });
 
-    if (!order) {
-      return res.status(404).send("Order not found");
-    }
-
-    res.send(order);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("An error occurred while deleting the order");
+  if (!order) {
+    return res.status(404).send("Order not found");
   }
-});
 
+  res.send(order);
+});
 
 // Update an order
 router.put("/:orderId", auth, authorize.admin, async (req, res) => {
-  try {
+
     const { error } = validate(req.body);
     if (error) {
       return res.status(400).send(error.details[0].message);
@@ -119,10 +107,7 @@ router.put("/:orderId", auth, authorize.admin, async (req, res) => {
     await order.save();
 
     res.send(order);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("An error occurred while updating the order");
-  }
+ 
 });
 
 module.exports = router;

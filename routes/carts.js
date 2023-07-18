@@ -6,7 +6,7 @@ const { Cart, validateCartProduct, validateProductQuantity } = require("../model
 const { Product } = require("../models/product");
 
 // Remove Product from Cart
-router.delete("/cart/:productId", auth, authorize.admin, async (req, res) => {
+router.delete("/cart/:productId", auth, async (req, res) => {
   const cart = await Cart.findOne({ user: req.user._id });
 
   if (!cart) {
@@ -30,7 +30,7 @@ router.delete("/cart/:productId", auth, authorize.admin, async (req, res) => {
 // Get Cart
 router.get("/cart/", auth, async (req, res) => {
   const cart = await Cart.findOne({ user: req.user._id })
-    .populate("products.productId", "title price"); // Populate product details
+    .populate("products.productId", "title price imageUrl"); // Populate product details
 
   if (!cart) return res.status(404).send("Cart not found");
 
