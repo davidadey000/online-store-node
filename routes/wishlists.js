@@ -3,20 +3,42 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const authorize = require("../middleware/authorize");
 const { Wishlist, validate } = require("../models/wishlist");
+const {Product}  = require("../models/product")
 
 // Get user's wishlist
 router.get("/wishlist/", auth, async (req, res) => {
   const wishlist = await Wishlist.findOne({ user: req.user._id }).populate(
     "products.productId",
-    "title price imageUrl"
+    "title price imageUrl discount numberInStock mainImageUrl"
   ); // Populate product details
 
   if (!wishlist) {
     return res.status(404).send("Wishlist not found");
   }
 
-  res.send(wishlist);
+  // Restructure the products array before sending it
+  const modifiedWishlist = {
+    ...wishlist.toObject(),
+    products: wishlist.products.map((product) => {
+      const { title, price, imageUrl, discount, numberInStock, mainImageUrl } = product.productId;
+      const discountedPrice = price - (price * discount) / 100;
+
+      return {
+        _id: product.productId._id,
+        title,
+        price,
+        discountedPrice, // Add the discounted price to the product object
+        imageUrl,
+        discount,
+        numberInStock,
+        mainImageUrl,
+      };
+    }),
+  };
+
+  res.send(modifiedWishlist);
 });
+
 
 // Add product to wishlist
 router.post("/wishlist/", auth, async (req, res) => {
@@ -28,6 +50,11 @@ router.post("/wishlist/", auth, async (req, res) => {
 
   try {
     let wishlist = await Wishlist.findOne({ user: req.user._id });
+
+    const productData = await Product.findById(productId);
+    if (!productData) {
+      return res.status(400).send(`Product with ID ${productId} not found`);
+    }
 
     if (!wishlist) {
       // Create a new wishlist if it doesn't exist

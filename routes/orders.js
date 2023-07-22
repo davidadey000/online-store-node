@@ -38,11 +38,15 @@ router.post("/", auth, async (req, res) => {
     await productData.save();
   }
 
+  // perform transaction payment transaction
+  const status = "delivered"
+
   // Create a new order
   const order = new Order({
     user: req.user._id,
     products,
     totalAmount,
+    status
   });
 
   // Save the order to the database
@@ -57,9 +61,11 @@ router.post("/", auth, async (req, res) => {
 
 // Get all orders for a user
 router.get("/", auth, async (req, res) => {
-  const orders = await Order.find({ user: req.user._id }).populate("products.productId", "title price imageUrl").sort({
-    createdAt: -1,
-  });
+  const orders = await Order.find({ user: req.user._id })
+    .populate("products.productId", "title price imageUrl additionalAttributes")
+    .sort({
+      createdAt: -1,
+    });
 
   res.send(orders);
 });
@@ -83,31 +89,29 @@ router.delete("/:orderId", auth, authorize.admin, async (req, res) => {
 
 // Update an order
 router.put("/:orderId", auth, authorize.admin, async (req, res) => {
+  const { error } = validate(req.body);
+  if (error) {
+    return res.status(400).send(error.details[0].message);
+  }
 
-    const { error } = validate(req.body);
-    if (error) {
-      return res.status(400).send(error.details[0].message);
-    }
+  const orderId = req.params.orderId;
 
-    const orderId = req.params.orderId;
+  // Find the order by ID and ensure it belongs to the authenticated user
+  const order = await Order.findOne({
+    _id: orderId,
+  });
 
-    // Find the order by ID and ensure it belongs to the authenticated user
-    const order = await Order.findOne({
-      _id: orderId,
-    });
+  if (!order) {
+    return res.status(404).send("Order not found");
+  }
 
-    if (!order) {
-      return res.status(404).send("Order not found");
-    }
+  // Update the order with the new data
+  order.products = req.body.products;
+  order.totalAmount = req.body.totalAmount;
 
-    // Update the order with the new data
-    order.products = req.body.products;
-    order.totalAmount = req.body.totalAmount;
+  await order.save();
 
-    await order.save();
-
-    res.send(order);
- 
+  res.send(order);
 });
 
 module.exports = router;

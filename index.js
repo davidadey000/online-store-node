@@ -2,11 +2,17 @@ require("express-async-errors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const config = require("config");
+const cors = require("cors");
 const winston = require('winston');
 const Joi = require('joi')
 Joi.objectId = require('joi-objectid')(Joi)
 const express = require("express");
 const app = express();
+
+// middleware
+app.use(cors());
+app.use(helmet());
+app.use(morgan("tiny"));
 
 require('./startup/routes')(app);
 require('./startup/db')()
@@ -16,7 +22,7 @@ process.on('uncaughtException', (ex) => {
   winston.error(ex.message, ex)
 })
 process.on('uncaughtException', (ex) => {
-  console.log('WE GOT AN UNCAUGHT EXCEPTION');
+  console.log('WE GOT AN UNHANDLED PROMISE');
   winston.error(ex.message, ex)
 })
 
@@ -28,9 +34,6 @@ if (!config.get("jwtPrivateKey")) {
   process.exit(1);
 }
 
-// middleware
-app.use(helmet());
-app.use(morgan("tiny"));
 
 console.log("Application Name: " + config.get("name"));
 if (app.get("env") === "development") {

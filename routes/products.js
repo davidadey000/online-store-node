@@ -21,13 +21,22 @@ router.post("/", auth, async (req, res) => {
   if (categories.length !== req.body.categoryIds.length)
     return res.status(400).send("Invalid category.");
 
+  const mainImageUrl = req.body.mainImageUrl;
+
+  // Ensure that the mainImageUrl is present in the imageUrls array
+  if (!req.body.imageUrls.includes(mainImageUrl)) {
+    return res.status(400).send("Invalid main image URL.");
+  }
+
   const product = new Product({
     title: req.body.title,
     categories: categories.map((category) => category._id),
     price: req.body.price,
+    discount: req.body.discount,
     numberInStock: req.body.numberInStock,
     description: req.body.description,
     imageUrls: req.body.imageUrls,
+    mainImageUrl: mainImageUrl,
     additionalAttributes: req.body.additionalAttributes,
   });
 
@@ -75,7 +84,16 @@ router.get("/:id", async (req, res) => {
       .status(404)
       .send("The product with the given ID could not be found");
 
-  res.send(product);
+  // Calculate the discounted price during the GET request
+  const discountedPrice = parseFloat(
+    (product.price - (product.price * product.discount) / 100).toFixed(2)
+  );
+
+  // Calculate the saved amount, rounded to two decimal places
+  const savedAmount = parseFloat((product.price - discountedPrice).toFixed(2));
+
+  // Include the discounted price and saved amount in the response
+  res.send({ ...product.toObject(), discountedPrice, savedAmount });
 });
 
 module.exports = router;
