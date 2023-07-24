@@ -10,6 +10,60 @@ router.get("/", async (req, res) => {
   res.send(products);
 });
 
+router.get("/random/", async (req, res) => {
+  // Get the total count of products in the database
+  const totalCount = await Product.countDocuments();
+
+  // Generate an array of 12 random indices (numbers) within the range of the total count
+  const randomIndices = Array.from({ length: 12 }, () => Math.floor(Math.random() * totalCount));
+
+  // Find the 12 random products using the random indices
+  const randomProducts = await Product.find().limit(12).skip(randomIndices[0]);
+
+ // Calculate discountedPrice and discount for each product
+ const productsWithDiscount = randomProducts.map((product) => {
+  const discountedPrice = product.price - (product.price * product.discount) / 100;
+  return {
+    ...product._doc,
+    discountedPrice, // Add discountedPrice field to the product
+  };
+});
+
+  res.status(200).json(productsWithDiscount);
+});
+
+
+// Route to get products under a certain category
+router.get("/category/:categoryId", async (req, res) => {
+  const categoryId = req.params.categoryId;
+
+  try {
+    // Find products with the matching category ID
+    const products = await Product.find({ categories: categoryId });
+
+    // If no products are found, return an empty array
+    if (!products || products.length === 0) {
+      return res.status(404).json({ message: "No products found under this category." });
+    }
+
+    // Calculate discountedPrice and discount for each product
+    const productsWithDiscount = products.map((product) => {
+      const discountedPrice = product.price - (product.price * product.discount) / 100;
+      return {
+        ...product._doc,
+        discountedPrice, // Add discountedPrice field to the product
+      };
+    });
+
+    // Return the products with the additional fields
+    res.status(200).json(productsWithDiscount);
+  } catch (error) {
+    console.error("Error fetching products by category:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+});
+
+
 router.post("/", auth, async (req, res) => {
   const { error } = validate(req.body);
   if (error) return res.status(400).send(error.details[0].message);
@@ -45,7 +99,7 @@ router.post("/", auth, async (req, res) => {
   res.send(product);
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", auth, async (req, res) => {
   const { error } = validate(req.body);
   if (error) return res.status(400).send(error.details[0].message);
 

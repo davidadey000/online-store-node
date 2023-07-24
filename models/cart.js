@@ -35,16 +35,9 @@ function validateCartProduct(product) {
   return schema.validate(product);
 }
 
-function validateProductQuantity(product) {
-  const schema = Joi.object({
-    quantity: Joi.number().integer().min(1).required(),
-  });
 
-  return schema.validate(product);
-}
 
 module.exports = {
   Cart,
-  validateCartProduct,
-  validateProductQuantity,
+  validateCartProduct
 };
