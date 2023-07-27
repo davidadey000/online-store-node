@@ -33,7 +33,9 @@ router.post("/", auth, async (req, res) => {
     const { productId, quantity } = product;
     const productData = await Product.findById(productId);
     if (!productData) {
-      return res.status(400).send(`Product with ID ${productId} not found`);
+      return res
+        .status(400)
+        .send(`Product with ID ${productId} not found`);
     }
 
     // Calculate the total amount for the individual order
@@ -42,24 +44,30 @@ router.post("/", auth, async (req, res) => {
     const mockObject = {
       productId: productData._id.toString(), // Convert to string here
       quantity,
-      status: "delivered",
+      status: "pending",
       totalAmount: individualTotalAmount,
     };
-    
-    console.log(productData._id, productId)
+
+    console.log(productData._id, productId);
     // Validate the order object before saving
     const { error } = validate(mockObject);
     if (error) {
       // If there is an error in the validation, return a 400 Bad Request
       return res.status(400).send(error.details[0].message);
     }
-    
+
+    // Check if the product quantity will be greater than or equal to 0 after subtraction
+    if (productData.numberInStock - quantity < 0) {
+      return res
+        .status(400)
+        .send(`Quantity not available for product ${productId}`);
+    }
+
     // Create a new order for the current product
     const order = new Order({
       user: req.user._id,
-      ...mockObject
+      ...mockObject,
     });
-    
 
     // Save the order to the database
     await order.save();

@@ -2,7 +2,11 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const authorize = require("../middleware/authorize");
-const { Cart, validateCartProduct } = require("../models/cart");
+const {
+  Cart,
+  validateCartProduct,
+  validateProductQuantity,
+} = require("../models/cart");
 const { Product } = require("../models/product");
 
 // Function to populate product details in the cart
@@ -42,7 +46,7 @@ function restructureCart(cart) {
         numberInStock,
         mainImageUrl,
         quantity,
-        slug
+        slug,
       };
     }),
   };
@@ -149,18 +153,41 @@ router.post("/cart/", auth, async (req, res) => {
 });
 
 // Update Product Quantity in Cart (Increment)
-router.put("/cart/increment/:productId", auth, async (req, res) => {
-  console.log(req.user._id);
-  try {
-    const cart = await Cart.findOneAndUpdate(
-      { user: req.user._id, "products.productId": req.params.productId },
-      { $inc: { "products.$.quantity": 1 } }, // Use $inc to increment the quantity by 1
-      { new: true }
-    );
+router.put(
+  "/cart/increment/:productId",
+  auth,async (req, res) => {
+    const cart = await Cart.findOne({
+      user: req.user._id,
+      "products.productId": req.params.productId,
+    });
 
     if (!cart) {
       return res.status(404).send("Cart or product not found");
     }
+
+    // Find the product in the cart array
+    const productInCart = cart.products.find(
+      (product) => product.productId.toString() === req.params.productId
+    );
+
+    // Get the product from the database
+    const product = await Product.findById(productInCart.productId);
+
+    if (!product) {
+      return res.status(404).send("Product not found");
+    }
+
+    // Get the maximum stock quantity of the product
+    const maxStockQuantity = product.numberInStock;
+
+    // Increment the cart quantity by 1 (if it does not exceed the maximum stock)
+    if (productInCart.quantity < maxStockQuantity) {
+      productInCart.quantity += 1;
+    } else {
+      return res.status(400).send("Maximum stock quantity reached");
+    }
+
+    await cart.save();
 
     const modifiedCart = await populateCartDetails(req.user._id);
     if (!modifiedCart) {
@@ -169,24 +196,37 @@ router.put("/cart/increment/:productId", auth, async (req, res) => {
 
     const responseCart = restructureCart(modifiedCart);
     res.send(responseCart);
-  } catch (error) {
-    console.error("Error incrementing item quantity:", error);
-    res.status(500).send("Error incrementing item quantity");
-  }
-});
+  })
 
 // Update Product Quantity in Cart (Decrement)
 router.put("/cart/decrement/:productId", auth, async (req, res) => {
   try {
-    const cart = await Cart.findOneAndUpdate(
-      { user: req.user._id, "products.productId": req.params.productId },
-      { $inc: { "products.$.quantity": -1 } }, // Use $inc to decrement the quantity by 1
-      { new: true }
-    );
+    const cart = await Cart.findOne({
+      user: req.user._id,
+      "products.productId": req.params.productId,
+    });
 
     if (!cart) {
       return res.status(404).send("Cart or product not found");
     }
+
+    // Get the index of the product in the cart array
+    const productIndex = cart.products.findIndex(
+      (product) => product.productId.toString() === req.params.productId
+    );
+
+    // Get the quantity of the product in the cart
+    const currentQuantity = cart.products[productIndex].quantity;
+
+    // Check if decrementing will go lower than one
+    if (currentQuantity <= 1) {
+      return res.status(400).send("Cannot decrement quantity below one");
+    }
+
+    // Decrement the quantity of the product by 1
+    cart.products[productIndex].quantity -= 1;
+
+    await cart.save();
 
     const modifiedCart = await populateCartDetails(req.user._id);
     if (!modifiedCart) {
