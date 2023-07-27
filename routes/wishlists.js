@@ -5,42 +5,48 @@ const authorize = require("../middleware/authorize");
 const { Wishlist, validate } = require("../models/wishlist");
 const {Product}  = require("../models/product")
 
-// Get user's wishlist
-router.get("/wishlist/", auth, async (req, res) => {
-  const wishlist = await Wishlist.findOne({ user: req.user._id }).populate(
-    "products.productId",
-    "title price imageUrl discount numberInStock mainImageUrl"
-  ); // Populate product details
 
-  if (!wishlist) {
-    return res.status(404).send("Wishlist not found");
-  }
-
-  // Restructure the products array before sending it
-  const modifiedWishlist = {
+function restructureWishlist(wishlist) {
+  return {
     ...wishlist.toObject(),
     products: wishlist.products.map((product) => {
-      const { title, price, imageUrl, discount, numberInStock, mainImageUrl } = product.productId;
+      const { title, price, imageUrl, discount, numberInStock, mainImageUrl, slug } =
+        product.productId;
       const discountedPrice = price - (price * discount) / 100;
 
       return {
         _id: product.productId._id,
         title,
         price,
-        discountedPrice, // Add the discounted price to the product object
+        discountedPrice,
         imageUrl,
         discount,
         numberInStock,
         mainImageUrl,
+        slug
       };
     }),
   };
+}
+async function populateWishlistDetails(user) {
+  return await Wishlist.findOne({ user }).populate(
+    "products.productId",
+    "title price imageUrl discount numberInStock mainImageUrl slug"
+  );
+}
 
+router.get("/wishlist/", auth, async (req, res) => {
+  const wishlist = await populateWishlistDetails(req.user._id);
+
+  if (!wishlist) {
+    return res.status(404).send("Wishlist not found");
+  }
+
+  const modifiedWishlist = restructureWishlist(wishlist);
   res.send(modifiedWishlist);
 });
 
 
-// Add product to wishlist
 router.post("/wishlist/", auth, async (req, res) => {
   const { error } = validate(req.body);
   if (error) {
@@ -78,7 +84,13 @@ router.post("/wishlist/", auth, async (req, res) => {
 
     await wishlist.save();
 
-    res.send(wishlist);
+    const modifiedWishlist = await populateWishlistDetails(req.user._id);
+    if (!modifiedWishlist) {
+      return res.status(404).send("Wishlist not found");
+    }
+
+    const responseWishlist = restructureWishlist(modifiedWishlist);
+    res.send(responseWishlist);
   } catch (error) {
     console.error(error);
     res
@@ -87,10 +99,8 @@ router.post("/wishlist/", auth, async (req, res) => {
   }
 });
 
-// Remove product from wishlist
-router.delete("/wishlist/:productId", auth, async (req, res) => {
-  const { productId } = req.params;
 
+router.delete("/wishlist/:productId", auth, async (req, res) => {
   const wishlist = await Wishlist.findOne({ user: req.user._id });
 
   if (!wishlist) {
@@ -98,7 +108,7 @@ router.delete("/wishlist/:productId", auth, async (req, res) => {
   }
 
   const productIndex = wishlist.products.findIndex(
-    (p) => p.productId.toString() === productId
+    (p) => p.productId.toString() === req.params.productId
   );
 
   if (productIndex === -1) {
@@ -108,7 +118,13 @@ router.delete("/wishlist/:productId", auth, async (req, res) => {
   wishlist.products.splice(productIndex, 1);
   await wishlist.save();
 
-  res.send(wishlist);
+  const modifiedWishlist = await populateWishlistDetails(req.user._id);
+  if (!modifiedWishlist) {
+    return res.status(404).send("Wishlist not found");
+  }
+
+  const responseWishlist = restructureWishlist(modifiedWishlist);
+  res.send(responseWishlist);
 });
 
 module.exports = router;

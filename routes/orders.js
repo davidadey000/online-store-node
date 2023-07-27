@@ -23,46 +23,69 @@ router.post("/", auth, async (req, res) => {
   // Extract the products from the cart
   const products = cart.products;
 
+  // Create an array to hold the individual orders
+  const orders = [];
+
   // Calculate the total amount based on the cart contents
   let totalAmount = 0;
+
   for (const product of products) {
     const { productId, quantity } = product;
     const productData = await Product.findById(productId);
     if (!productData) {
       return res.status(400).send(`Product with ID ${productId} not found`);
     }
-    totalAmount += productData.price * quantity;
+
+    // Calculate the total amount for the individual order
+    const individualTotalAmount = productData.price * quantity;
+
+    const mockObject = {
+      productId: productData._id.toString(), // Convert to string here
+      quantity,
+      status: "delivered",
+      totalAmount: individualTotalAmount,
+    };
+    
+    console.log(productData._id, productId)
+    // Validate the order object before saving
+    const { error } = validate(mockObject);
+    if (error) {
+      // If there is an error in the validation, return a 400 Bad Request
+      return res.status(400).send(error.details[0].message);
+    }
+    
+    // Create a new order for the current product
+    const order = new Order({
+      user: req.user._id,
+      ...mockObject
+    });
+    
+
+    // Save the order to the database
+    await order.save();
+
+    // Add the order to the array of orders
+    orders.push(order);
+
+    // Update the total amount for all orders
+    totalAmount += individualTotalAmount;
 
     // Subtract the order quantity from the product quantity
     productData.numberInStock -= quantity;
     await productData.save();
   }
 
-  // perform transaction payment transaction
-  const status = "delivered"
-
-  // Create a new order
-  const order = new Order({
-    user: req.user._id,
-    products,
-    totalAmount,
-    status
-  });
-
-  // Save the order to the database
-  await order.save();
-
   // Clear the user's cart
   cart.products = [];
   await cart.save();
 
-  res.send(order);
+  res.send(orders);
 });
 
 // Get all orders for a user
 router.get("/", auth, async (req, res) => {
   const orders = await Order.find({ user: req.user._id })
-    .populate("products.productId", "title price imageUrl additionalAttributes")
+    .populate("productId", "title price imageUrl mainImageUrl additionalAttributes slug")
     .sort({
       createdAt: -1,
     });

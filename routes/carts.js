@@ -2,17 +2,14 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const authorize = require("../middleware/authorize");
-const {
-  Cart,
-  validateCartProduct
-} = require("../models/cart");
+const { Cart, validateCartProduct } = require("../models/cart");
 const { Product } = require("../models/product");
 
 // Function to populate product details in the cart
 async function populateCartDetails(user) {
   return await Cart.findOne({ user }).populate(
     "products.productId",
-    "title price imageUrl discount numberInStock mainImageUrl"
+    "title price imageUrl discount numberInStock mainImageUrl slug"
   );
 }
 
@@ -21,8 +18,15 @@ function restructureCart(cart) {
   return {
     ...cart.toObject(),
     products: cart.products.map((product) => {
-      const { title, price, imageUrl, discount, numberInStock, mainImageUrl } =
-        product.productId;
+      const {
+        title,
+        price,
+        imageUrl,
+        discount,
+        numberInStock,
+        mainImageUrl,
+        slug,
+      } = product.productId;
       const quantity = product.quantity;
       const discountedPrice = parseFloat(
         (price - (price * discount) / 100).toFixed(2)
@@ -38,6 +42,7 @@ function restructureCart(cart) {
         numberInStock,
         mainImageUrl,
         quantity,
+        slug
       };
     }),
   };
@@ -145,7 +150,7 @@ router.post("/cart/", auth, async (req, res) => {
 
 // Update Product Quantity in Cart (Increment)
 router.put("/cart/increment/:productId", auth, async (req, res) => {
-  console.log(req.user._id)
+  console.log(req.user._id);
   try {
     const cart = await Cart.findOneAndUpdate(
       { user: req.user._id, "products.productId": req.params.productId },
@@ -195,6 +200,5 @@ router.put("/cart/decrement/:productId", auth, async (req, res) => {
     res.status(500).send("Error decrementing item quantity");
   }
 });
-
 
 module.exports = router;

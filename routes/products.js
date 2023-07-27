@@ -3,6 +3,7 @@ const authorize = require("../middleware/authorize");
 const auth = require("../middleware/auth");
 const router = express.Router();
 const { Product, validate } = require("../models/product");
+const slugify = require("slugify");
 const { Category } = require("../models/category");
 
 router.get("/", async (req, res) => {
@@ -15,23 +16,25 @@ router.get("/random/", async (req, res) => {
   const totalCount = await Product.countDocuments();
 
   // Generate an array of 12 random indices (numbers) within the range of the total count
-  const randomIndices = Array.from({ length: 12 }, () => Math.floor(Math.random() * totalCount));
+  const randomIndices = Array.from({ length: 12 }, () =>
+    Math.floor(Math.random() * totalCount)
+  );
 
   // Find the 12 random products using the random indices
   const randomProducts = await Product.find().limit(12).skip(randomIndices[0]);
 
- // Calculate discountedPrice and discount for each product
- const productsWithDiscount = randomProducts.map((product) => {
-  const discountedPrice = product.price - (product.price * product.discount) / 100;
-  return {
-    ...product._doc,
-    discountedPrice, // Add discountedPrice field to the product
-  };
-});
+  // Calculate discountedPrice and discount for each product
+  const productsWithDiscount = randomProducts.map((product) => {
+    const discountedPrice =
+      product.price - (product.price * product.discount) / 100;
+    return {
+      ...product._doc,
+      discountedPrice, // Add discountedPrice field to the product
+    };
+  });
 
   res.status(200).json(productsWithDiscount);
 });
-
 
 // Route to get products under a certain category
 router.get("/category/:categoryId", async (req, res) => {
@@ -43,12 +46,15 @@ router.get("/category/:categoryId", async (req, res) => {
 
     // If no products are found, return an empty array
     if (!products || products.length === 0) {
-      return res.status(404).json({ message: "No products found under this category." });
+      return res
+        .status(404)
+        .json({ message: "No products found under this category." });
     }
 
     // Calculate discountedPrice and discount for each product
     const productsWithDiscount = products.map((product) => {
-      const discountedPrice = product.price - (product.price * product.discount) / 100;
+      const discountedPrice =
+        product.price - (product.price * product.discount) / 100;
       return {
         ...product._doc,
         discountedPrice, // Add discountedPrice field to the product
@@ -62,7 +68,6 @@ router.get("/category/:categoryId", async (req, res) => {
     res.status(500).json({ message: "Internal server error." });
   }
 });
-
 
 router.post("/", auth, async (req, res) => {
   const { error } = validate(req.body);
@@ -82,6 +87,9 @@ router.post("/", auth, async (req, res) => {
     return res.status(400).send("Invalid main image URL.");
   }
 
+  // Generate the slug from the product title
+  const slug = slugify(req.body.title, { lower: true });
+
   const product = new Product({
     title: req.body.title,
     categories: categories.map((category) => category._id),
@@ -92,6 +100,7 @@ router.post("/", auth, async (req, res) => {
     imageUrls: req.body.imageUrls,
     mainImageUrl: mainImageUrl,
     additionalAttributes: req.body.additionalAttributes,
+    slug: slug,
   });
 
   await product.save();
@@ -130,13 +139,13 @@ router.delete("/:id", [auth, authorize.admin], async (req, res) => {
   res.send(product);
 });
 
-router.get("/:id", async (req, res) => {
-  const product = await Product.findById(req.params.id);
+router.get("/:slug", async (req, res) => {
+  const product = await Product.findOne({ slug: req.params.slug });
 
   if (!product)
     return res
       .status(404)
-      .send("The product with the given ID could not be found");
+      .send("The product with the given slug could not be found");
 
   // Calculate the discounted price during the GET request
   const discountedPrice = parseFloat(

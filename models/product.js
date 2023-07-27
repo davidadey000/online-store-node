@@ -53,6 +53,13 @@ const productSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: {},
   },
+  slug: {
+    type: String,
+    required: true,
+    minlength: 5,
+    maxlength: 100,
+    unique: true
+  },
 });
 
 const Product = mongoose.model("Product", productSchema);
