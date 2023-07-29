@@ -44,7 +44,7 @@ router.post("/", auth, async (req, res) => {
     const mockObject = {
       productId: productData._id.toString(), // Convert to string here
       quantity,
-      status: "pending",
+      status: "cancelled",
       totalAmount: individualTotalAmount,
     };
 

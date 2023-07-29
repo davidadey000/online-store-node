@@ -3,19 +3,28 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const authorize = require("../middleware/authorize");
 const { Wishlist, validate } = require("../models/wishlist");
-const {Product}  = require("../models/product")
-
+const { Product } = require("../models/product");
 
 function restructureWishlist(wishlist) {
   return {
     ...wishlist.toObject(),
     products: wishlist.products.map((product) => {
-      const { title, price, imageUrl, discount, numberInStock, mainImageUrl, slug } =
-        product.productId;
+      const {
+        _id,
+        title,
+        price,
+        imageUrl,
+        discount,
+        numberInStock,
+        mainImageUrl,
+        slug,
+      } = product.productId;
       const discountedPrice = price - (price * discount) / 100;
+      const cartId = product._id;
 
       return {
-        _id: product.productId._id,
+        _id,
+        cartId,
         title,
         price,
         discountedPrice,
@@ -23,16 +32,27 @@ function restructureWishlist(wishlist) {
         discount,
         numberInStock,
         mainImageUrl,
-        slug
+        slug,
       };
     }),
   };
 }
 async function populateWishlistDetails(user) {
-  return await Wishlist.findOne({ user }).populate(
+  const wishlist = await Wishlist.findOne({ user }).populate(
     "products.productId",
     "title price imageUrl discount numberInStock mainImageUrl slug"
   );
+
+  if (!wishlist) {
+    return null;
+  }
+
+  wishlist.products.forEach((product) => {
+    const { price, discount } = product.productId;
+    product.discountedPrice = price - (price * discount) / 100;
+  });
+
+  return wishlist;
 }
 
 router.get("/wishlist/", auth, async (req, res) => {
@@ -45,7 +65,6 @@ router.get("/wishlist/", auth, async (req, res) => {
   const modifiedWishlist = restructureWishlist(wishlist);
   res.send(modifiedWishlist);
 });
-
 
 router.post("/wishlist/", auth, async (req, res) => {
   const { error } = validate(req.body);
@@ -98,7 +117,6 @@ router.post("/wishlist/", auth, async (req, res) => {
       .send("An error occurred while adding the product to the wishlist");
   }
 });
-
 
 router.delete("/wishlist/:productId", auth, async (req, res) => {
   const wishlist = await Wishlist.findOne({ user: req.user._id });

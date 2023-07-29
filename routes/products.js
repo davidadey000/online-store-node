@@ -36,13 +36,21 @@ router.get("/random/", async (req, res) => {
   res.status(200).json(productsWithDiscount);
 });
 
-// Route to get products under a certain category
-router.get("/category/:categoryId", async (req, res) => {
-  const categoryId = req.params.categoryId;
+
+// Route to get products under a certain category using the slug
+router.get("/category/:categorySlug", async (req, res) => {
+  const categorySlug = req.params.categorySlug;
 
   try {
+    // Find the category using the provided slug
+    const category = await Category.findOne({ slug: categorySlug });
+
+    if (!category) {
+      return res.status(404).json({ message: "Category not found." });
+    }
+
     // Find products with the matching category ID
-    const products = await Product.find({ categories: categoryId });
+    const products = await Product.find({ categories: category._id });
 
     // If no products are found, return an empty array
     if (!products || products.length === 0) {
@@ -57,17 +65,24 @@ router.get("/category/:categoryId", async (req, res) => {
         product.price - (product.price * product.discount) / 100;
       return {
         ...product._doc,
-        discountedPrice, // Add discountedPrice field to the product
+        discountedPrice,
       };
     });
 
-    // Return the products with the additional fields
-    res.status(200).json(productsWithDiscount);
+    // Prepare the final response with dynamic collectionName and products
+    const response = {
+      collectionName: category.name, // Get the collection name from the category object
+      products: productsWithDiscount,
+    };
+
+    // Return the response
+    res.status(200).json(response);
   } catch (error) {
     console.error("Error fetching products by category:", error);
     res.status(500).json({ message: "Internal server error." });
   }
 });
+
 
 router.post("/", auth, async (req, res) => {
   const { error } = validate(req.body);
@@ -158,5 +173,34 @@ router.get("/:slug", async (req, res) => {
   // Include the discounted price and saved amount in the response
   res.send({ ...product.toObject(), discountedPrice, savedAmount });
 });
+
+// Slug Route
+router.put("/slug/:id", async (req, res) => {
+  try {
+    const productId = req.params.id;
+
+    // Find the product by ID
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+    
+
+    // Slugify the product title and add it to the product object
+    const slug = slugify(product.title, { lower: true });
+    product.slug = slug;
+
+    // Save the updated product with the slug field
+    await product.save();
+
+    res.json(product);
+  } catch (error) {
+    console.error("Error generating slug:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+module.exports = router;
 
 module.exports = router;

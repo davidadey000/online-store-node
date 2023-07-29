@@ -2,6 +2,7 @@ const express = require("express");
 const authorize = require("../middleware/authorize");
 const auth = require("../middleware/auth");
 const router = express.Router();
+const slugify = require("slugify");
 const { Category, validate } = require("../models/category");
 
 router.get("/", async (req, res) => {
@@ -13,8 +14,12 @@ router.get("/", async (req, res) => {
 router.post("/", auth, async (req, res) => {
   const { error } = validate(req.body);
   if (error) return res.status(400).send(error.details[0].message);
-  let category = new Category({ name: req.body.name });
+
+  const slug = slugify(req.body.name, { lower: true });
+
+  let category = new Category({ name: req.body.name, slug: slug });
   category = await category.save();
+
   res.send(category);
 });
 
@@ -56,8 +61,34 @@ router.get("/:id", async (req, res) => {
     return res
       .status(404)
       .send("The category with the given ID could not be found");
-
   res.send(category);
+});
+
+// Slug Route
+router.put("/slug/:id", async (req, res) => {
+  try {
+    const categoryId = req.params.id;
+
+    // Find the category by ID
+    const category = await Category.findById(categoryId);
+
+    if (!category) {
+      return res.status(404).json({ error: "Category not found" });
+    }
+    
+
+    // Slugify the category title and add it to the category object
+    const slug = slugify(category.name, { lower: true });
+    category.slug = slug;
+
+    // Save the updated category with the slug field
+    await category.save();
+
+    res.json(category);
+  } catch (error) {
+    console.error("Error generating slug:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 module.exports = router;
