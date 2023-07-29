@@ -14,7 +14,6 @@ router.post("/", async (req, res) => {
   const { error } = validate(req.body);
   if (error) return res.status(400).send(error.details[0].message);
 
-  try {
     let user = await User.findOne({ email: req.body.email }).exec();
     if (user) {
       return res.status(400).send("User already registered.");
@@ -30,10 +29,7 @@ router.post("/", async (req, res) => {
     const token = user.generateAuthToken();
 
     res.header("x-auth-token", token).send(_.pick(user, ["name", "email"]));
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("An error occurred.");
-  }
+ 
 });
 
 module.exports = router;

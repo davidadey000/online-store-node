@@ -73,7 +73,6 @@ router.post("/wishlist/", auth, async (req, res) => {
   }
   const { productId } = req.body;
 
-  try {
     let wishlist = await Wishlist.findOne({ user: req.user._id });
 
     const productData = await Product.findById(productId);
@@ -110,12 +109,7 @@ router.post("/wishlist/", auth, async (req, res) => {
 
     const responseWishlist = restructureWishlist(modifiedWishlist);
     res.send(responseWishlist);
-  } catch (error) {
-    console.error(error);
-    res
-      .status(500)
-      .send("An error occurred while adding the product to the wishlist");
-  }
+  
 });
 
 router.delete("/wishlist/:productId", auth, async (req, res) => {

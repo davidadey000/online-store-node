@@ -66,29 +66,22 @@ router.get("/:id", async (req, res) => {
 
 // Slug Route
 router.put("/slug/:id", async (req, res) => {
-  try {
-    const categoryId = req.params.id;
+  const categoryId = req.params.id;
+  // Find the category by ID
+  const category = await Category.findById(categoryId);
 
-    // Find the category by ID
-    const category = await Category.findById(categoryId);
-
-    if (!category) {
-      return res.status(404).json({ error: "Category not found" });
-    }
-    
-
-    // Slugify the category title and add it to the category object
-    const slug = slugify(category.name, { lower: true });
-    category.slug = slug;
-
-    // Save the updated category with the slug field
-    await category.save();
-
-    res.json(category);
-  } catch (error) {
-    console.error("Error generating slug:", error);
-    res.status(500).json({ error: "Internal server error" });
+  if (!category) {
+    return res.status(404).json({ error: "Category not found" });
   }
+
+  // Slugify the category title and add it to the category object
+  const slug = slugify(category.name, { lower: true });
+  category.slug = slug;
+
+  // Save the updated category with the slug field
+  await category.save();
+
+  res.json(category);
 });
 
 module.exports = router;

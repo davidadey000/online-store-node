@@ -41,7 +41,6 @@ router.get("/random/", async (req, res) => {
 router.get("/category/:categorySlug", async (req, res) => {
   const categorySlug = req.params.categorySlug;
 
-  try {
     // Find the category using the provided slug
     const category = await Category.findOne({ slug: categorySlug });
 
@@ -71,16 +70,13 @@ router.get("/category/:categorySlug", async (req, res) => {
 
     // Prepare the final response with dynamic collectionName and products
     const response = {
-      collectionName: category.name, // Get the collection name from the category object
+      name: category.name, // Get the collection name from the category object
       products: productsWithDiscount,
     };
 
     // Return the response
     res.status(200).json(response);
-  } catch (error) {
-    console.error("Error fetching products by category:", error);
-    res.status(500).json({ message: "Internal server error." });
-  }
+ 
 });
 
 
@@ -176,7 +172,6 @@ router.get("/:slug", async (req, res) => {
 
 // Slug Route
 router.put("/slug/:id", async (req, res) => {
-  try {
     const productId = req.params.id;
 
     // Find the product by ID
@@ -195,10 +190,7 @@ router.put("/slug/:id", async (req, res) => {
     await product.save();
 
     res.json(product);
-  } catch (error) {
-    console.error("Error generating slug:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
+ 
 });
 
 module.exports = router;
