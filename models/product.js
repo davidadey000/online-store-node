@@ -49,6 +49,12 @@ const productSchema = new mongoose.Schema({
       ref: "Category",
     },
   ],
+  tags: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Tag",
+    },
+  ],
   additionalAttributes: {
     type: mongoose.Schema.Types.Mixed,
     default: {},
@@ -58,7 +64,7 @@ const productSchema = new mongoose.Schema({
     required: true,
     minlength: 5,
     maxlength: 100,
-    unique: true
+    unique: true,
   },
 });
 
@@ -68,6 +74,7 @@ function validateProduct(body) {
   const schema = Joi.object({
     title: Joi.string().min(5).max(50).required(),
     categoryIds: Joi.array().items(Joi.objectId()).required(),
+    tagIds: Joi.array().items(Joi.objectId()).required(),
     numberInStock: Joi.number().min(0).max(255).required(),
     price: Joi.number().min(0).required(),
     discount: Joi.number().min(0).default(0), // Validate and set the default value for the discount
@@ -82,5 +89,23 @@ function validateProduct(body) {
   return schema.validate(body);
 }
 
+function validateProductUpdate(body) {
+  const productSchema = Joi.object({
+    title: Joi.string().min(3).max(255),
+    categories: Joi.array().items(Joi.objectId()),
+    price: Joi.number().min(0),
+    discount: Joi.number().min(0).max(100),
+    numberInStock: Joi.number().min(0),
+    description: Joi.string().allow(""),
+    imageUrls: Joi.array().items(Joi.string().uri()),
+    mainImageUrl: Joi.string().uri(),
+    additionalAttributes: Joi.object(),
+    slug: Joi.string().min(5).max(100),
+    tags: Joi.array().items(Joi.objectId()),
+  });
+
+  return productSchema.validate(body);
+}
 exports.validate = validateProduct;
+exports.validatePut = validateProductUpdate;
 exports.Product = Product;

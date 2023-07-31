@@ -2,7 +2,7 @@ const express = require("express");
 const authorize = require("../middleware/authorize");
 const auth = require("../middleware/auth");
 const router = express.Router();
-const { Product, validate } = require("../models/product");
+const { Product, validate,  validatePut } = require("../models/product");
 const slugify = require("slugify");
 const { Category } = require("../models/category");
 
@@ -79,6 +79,64 @@ router.get("/category/:categorySlug", async (req, res) => {
  
 });
 
+router.get("/tags/:slug", async (req, res) => {
+  const productSlug = req.params.slug;
+  const limit = req.query.limit ? parseInt(req.query.limit) : 0;
+  const sortBy = req.query.sortBy || "createdAt"; // Default sort by createdAt if not provided
+
+  // Find the product by slug
+  const product = await Product.findOne({ slug: productSlug });
+  if (!product) {
+    return res.status(404).json({ error: "Product not found" });
+  }
+
+  // Get the tags of the current product
+  const currentProductTags = product.tags;
+
+  // Prepare the query to find other products that have at least one tag in common with the current product
+  const query = {
+    _id: { $ne: product._id }, // Exclude the current product from the similar products
+    tags: { $in: currentProductTags },
+  };
+
+  // Find similar products with optional limit and sorting
+  let similarProducts;
+  if (limit > 0) {
+    similarProducts = await Product.find(query)
+      .limit(limit)
+      .sort({ [sortBy]: 1 });
+  } else {
+    similarProducts = await Product.find(query).sort({ [sortBy]: 1 });
+  }
+
+  // If no similar products are found, return an empty array
+  if (!similarProducts || similarProducts.length === 0) {
+    return res.status(404).json({ message: "No similar products found." });
+  }
+
+  // Calculate discountedPrice and discount for each similar product
+  const similarProductsWithDiscount = similarProducts.map((product) => {
+    const discountedPrice =
+      product.price - (product.price * product.discount) / 100;
+    return {
+      ...product._doc,
+      discountedPrice,
+    };
+  });
+
+  // Prepare the final response with similar products
+  const response = {
+    name: "View Similar Products",
+    products: similarProductsWithDiscount,
+  };
+
+  // Return the response
+  res.status(200).json(response);
+});
+
+
+
+
 
 router.post("/", auth, async (req, res) => {
   const { error } = validate(req.body);
@@ -118,25 +176,31 @@ router.post("/", auth, async (req, res) => {
 
   res.send(product);
 });
-
 router.put("/:id", auth, async (req, res) => {
-  const { error } = validate(req.body);
+  const { error } = validatePut(req.body);
   if (error) return res.status(400).send(error.details[0].message);
 
-  const product = await Product.findByIdAndUpdate(
-    req.params.id,
-    {
-      title: req.body.title,
-    },
-    { new: true }
-  );
+  const productId = req.params.id;
 
-  if (!product)
-    return res
-      .status(404)
-      .send("The product with the given ID could not be found");
+  // Find the product by ID
+  const product = await Product.findById(productId);
+  if (!product) {
+    return res.status(404).json({ error: "Product not found" });
+  }
 
-  res.send(product);
+  // Update the product fields with the new values from req.body
+  for (const key in req.body) {
+    product[key] = req.body[key];
+  }
+
+  // Save the updated product
+  try {
+    const updatedProduct = await product.save();
+    res.send(updatedProduct);
+  } catch (error) {
+    console.error("Error updating product:", error);
+    res.status(500).json({ error: "Failed to update product." });
+  }
 });
 
 router.delete("/:id", [auth, authorize.admin], async (req, res) => {
@@ -193,6 +257,5 @@ router.put("/slug/:id", async (req, res) => {
  
 });
 
-module.exports = router;
 
 module.exports = router;

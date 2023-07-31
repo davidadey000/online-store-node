@@ -54,8 +54,8 @@ router.delete("/:id", [auth, authorize.admin], async (req, res) => {
   res.send(category);
 });
 
-router.get("/:id", async (req, res) => {
-  const category = await Category.findById(req.params.id);
+router.get("/:slug", async (req, res) => {
+  const category = await Category.findOne({slug: req.params.slug});
 
   if (!category)
     return res
