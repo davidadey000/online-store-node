@@ -2,9 +2,10 @@ const express = require("express");
 const authorize = require("../middleware/authorize");
 const auth = require("../middleware/auth");
 const router = express.Router();
-const { Product, validate,  validatePut } = require("../models/product");
+const { Product, validate, validatePut } = require("../models/product");
 const slugify = require("slugify");
 const { Category } = require("../models/category");
+const { Collection } = require("../models/collection");
 
 router.get("/", async (req, res) => {
   const products = await Product.find().sort("title");
@@ -36,47 +37,86 @@ router.get("/random/", async (req, res) => {
   res.status(200).json(productsWithDiscount);
 });
 
-
 // Route to get products under a certain category using the slug
 router.get("/category/:categorySlug", async (req, res) => {
   const categorySlug = req.params.categorySlug;
 
-    // Find the category using the provided slug
-    const category = await Category.findOne({ slug: categorySlug });
+  // Find the category using the provided slug
+  const category = await Category.findOne({ slug: categorySlug });
 
-    if (!category) {
-      return res.status(404).json({ message: "Category not found." });
-    }
+  if (!category) {
+    return res.status(404).json({ message: "Category not found." });
+  }
 
-    // Find products with the matching category ID
-    const products = await Product.find({ categories: category._id });
+  // Find products with the matching category ID
+  const products = await Product.find({ categories: category._id });
 
-    // If no products are found, return an empty array
-    if (!products || products.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No products found under this category." });
-    }
+  // If no products are found, return an empty array
+  if (!products || products.length === 0) {
+    return res
+      .status(404)
+      .json({ message: "No products found under this category." });
+  }
 
-    // Calculate discountedPrice and discount for each product
-    const productsWithDiscount = products.map((product) => {
-      const discountedPrice =
-        product.price - (product.price * product.discount) / 100;
-      return {
-        ...product._doc,
-        discountedPrice,
-      };
-    });
-
-    // Prepare the final response with dynamic collectionName and products
-    const response = {
-      name: category.name, // Get the collection name from the category object
-      products: productsWithDiscount,
+  // Calculate discountedPrice and discount for each product
+  const productsWithDiscount = products.map((product) => {
+    const discountedPrice =
+      product.price - (product.price * product.discount) / 100;
+    return {
+      ...product._doc,
+      discountedPrice,
     };
+  });
 
-    // Return the response
-    res.status(200).json(response);
- 
+  // Prepare the final response with dynamic collectionName and products
+  const response = {
+    name: category.name, // Get the collection name from the category object
+    products: productsWithDiscount,
+  };
+
+  // Return the response
+  res.status(200).json(response);
+});
+
+// Route to get products under a certain collection using the slug
+router.get("/collection/:collectionSlug", async (req, res) => {
+  const collectionSlug = req.params.collectionSlug;
+
+  // Find the collection using the provided slug
+  const collection = await Collection.findOne({ slug: collectionSlug });
+
+  if (!collection) {
+    return res.status(404).json({ message: "Collection not found." });
+  }
+
+  // Find products with the matching collection ID
+  const products = await Product.find({ collections: collection._id });
+
+  // If no products are found, return an empty array
+  if (!products || products.length === 0) {
+    return res
+      .status(404)
+      .json({ message: "No products found under this collection." });
+  }
+
+  // Calculate discountedPrice and discount for each product
+  const productsWithDiscount = products.map((product) => {
+    const discountedPrice =
+      product.price - (product.price * product.discount) / 100;
+    return {
+      ...product._doc,
+      discountedPrice,
+    };
+  });
+
+  // Prepare the final response with dynamic collectionName and products
+  const response = {
+    name: collection.name, // Get the collection name from the collection object
+    products: productsWithDiscount,
+  };
+
+  // Return the response
+  res.status(200).json(response);
 });
 
 router.get("/tags/:slug", async (req, res) => {
@@ -134,10 +174,6 @@ router.get("/tags/:slug", async (req, res) => {
   res.status(200).json(response);
 });
 
-
-
-
-
 router.post("/", auth, async (req, res) => {
   const { error } = validate(req.body);
   if (error) return res.status(400).send(error.details[0].message);
@@ -176,6 +212,7 @@ router.post("/", auth, async (req, res) => {
 
   res.send(product);
 });
+
 router.put("/:id", auth, async (req, res) => {
   const { error } = validatePut(req.body);
   if (error) return res.status(400).send(error.details[0].message);
@@ -193,14 +230,8 @@ router.put("/:id", auth, async (req, res) => {
     product[key] = req.body[key];
   }
 
-  // Save the updated product
-  try {
-    const updatedProduct = await product.save();
-    res.send(updatedProduct);
-  } catch (error) {
-    console.error("Error updating product:", error);
-    res.status(500).json({ error: "Failed to update product." });
-  }
+  const updatedProduct = await product.save();
+  res.send(updatedProduct);
 });
 
 router.delete("/:id", [auth, authorize.admin], async (req, res) => {
@@ -236,26 +267,23 @@ router.get("/:slug", async (req, res) => {
 
 // Slug Route
 router.put("/slug/:id", async (req, res) => {
-    const productId = req.params.id;
+  const productId = req.params.id;
 
-    // Find the product by ID
-    const product = await Product.findById(productId);
+  // Find the product by ID
+  const product = await Product.findById(productId);
 
-    if (!product) {
-      return res.status(404).json({ error: "Product not found" });
-    }
-    
+  if (!product) {
+    return res.status(404).json({ error: "Product not found" });
+  }
 
-    // Slugify the product title and add it to the product object
-    const slug = slugify(product.title, { lower: true });
-    product.slug = slug;
+  // Slugify the product title and add it to the product object
+  const slug = slugify(product.title, { lower: true });
+  product.slug = slug;
 
-    // Save the updated product with the slug field
-    await product.save();
+  // Save the updated product with the slug field
+  await product.save();
 
-    res.json(product);
- 
+  res.json(product);
 });
-
 
 module.exports = router;

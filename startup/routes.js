@@ -7,6 +7,7 @@ const carts = require("../routes/carts");
 const orders = require("../routes/orders");
 const wishlists = require("../routes/wishlists");
 const tags = require("../routes/tags");
+const collections = require("../routes/collections");
 const error = require("../middleware/error");
 
 module.exports = function (app) {
@@ -20,5 +21,6 @@ module.exports = function (app) {
   app.use("/api/orders", orders);
   app.use("/api/tags", tags)
   app.use("/api/wishlists", wishlists);
+  app.use("/api/collections", collections);
   app.use(error);
 };

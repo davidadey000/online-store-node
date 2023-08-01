@@ -49,6 +49,12 @@ const productSchema = new mongoose.Schema({
       ref: "Category",
     },
   ],
+  collections: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Collection",
+    },
+  ],
   tags: [
     {
       type: mongoose.Schema.Types.ObjectId,
@@ -74,6 +80,7 @@ function validateProduct(body) {
   const schema = Joi.object({
     title: Joi.string().min(5).max(50).required(),
     categoryIds: Joi.array().items(Joi.objectId()).required(),
+    collectionIds: Joi.array().items(Joi.objectId()).required(),
     tagIds: Joi.array().items(Joi.objectId()).required(),
     numberInStock: Joi.number().min(0).max(255).required(),
     price: Joi.number().min(0).required(),
@@ -93,6 +100,7 @@ function validateProductUpdate(body) {
   const productSchema = Joi.object({
     title: Joi.string().min(3).max(255),
     categories: Joi.array().items(Joi.objectId()),
+    collections: Joi.array().items(Joi.objectId()),
     price: Joi.number().min(0),
     discount: Joi.number().min(0).max(100),
     numberInStock: Joi.number().min(0),
