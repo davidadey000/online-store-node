@@ -23,6 +23,12 @@ const userSchema = new mongoose.Schema({
     minlength: 5,
     maxlength: 255,
   },
+  shippingAddress: {
+    type: String,
+    required: true,
+    minlength: 7,
+    maxlength: 255,
+  },
   role: {
     type: String,
     enum: ["customer", "admin", "seller"],
@@ -43,6 +49,8 @@ function validateUser(body) {
     name: Joi.string().min(5).max(50).required(),
     email: Joi.string().min(5).max(255).required().email(),
     password: Joi.string().min(5).max(255).required(),
+    shippingAddress: Joi.string().min(7).max(255).required(),
+
   });
   return schema.validate(body);
 }
