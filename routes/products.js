@@ -12,6 +12,25 @@ router.get("/", async (req, res) => {
   res.send(products);
 });
 
+router.get("/price/:priceFigure", async (req, res) => {
+  const priceFigure = req.params.priceFigure; // Get the price figure from the URL path
+
+  if (!priceFigure) {
+    return res.status(400).json({ error: "Price figure is missing in the URL." });
+  }
+
+  // Convert the price figure to a number (e.g., remove the "₦" symbol if present)
+  const price = parseFloat(priceFigure.replace("₦", ""));
+
+  // Fetch products that have a price less than the specified figure
+  const products = await Product.find({ price: { $lt: price } });
+
+  // Return the filtered products to the frontend
+  res.json(products);
+});
+
+
+
 router.get("/random/", async (req, res) => {
   // Get the total count of products in the database
   const totalCount = await Product.countDocuments();
