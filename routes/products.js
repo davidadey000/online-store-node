@@ -16,7 +16,9 @@ router.get("/price/:priceFigure", async (req, res) => {
   const priceFigure = req.params.priceFigure; // Get the price figure from the URL path
 
   if (!priceFigure) {
-    return res.status(400).json({ error: "Price figure is missing in the URL." });
+    return res
+      .status(400)
+      .json({ error: "Price figure is missing in the URL." });
   }
 
   // Convert the price figure to a number (e.g., remove the "₦" symbol if present)
@@ -24,12 +26,22 @@ router.get("/price/:priceFigure", async (req, res) => {
 
   // Fetch products that have a price less than the specified figure
   const products = await Product.find({ price: { $lt: price } });
+    // Calculate discountedPrice and discount for each product
+  const productsWithDiscount = products.map((product) => {
+    const discountedPrice =
+      product.price - (product.price * product.discount) / 100;
+    return {
+      ...product._doc,
+      discountedPrice,
+    };
+  });
 
+  const response = { name: `Below ${priceFigure}`, products: productsWithDiscount };
   // Return the filtered products to the frontend
-  res.json(products);
+  console.log(response)
+  res.json(response);
+
 });
-
-
 
 router.get("/random/", async (req, res) => {
   // Get the total count of products in the database
