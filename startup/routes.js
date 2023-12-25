@@ -1,3 +1,4 @@
+// routes.js
 const express = require('express');
 const users = require("../routes/users");
 const auth = require("../routes/auth");

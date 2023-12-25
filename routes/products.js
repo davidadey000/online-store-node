@@ -276,25 +276,49 @@ router.delete("/:id", [auth, authorize.admin], async (req, res) => {
   res.send(product);
 });
 
-router.get("/:slug", async (req, res) => {
-  const product = await Product.findOne({ slug: req.params.slug });
 
-  if (!product)
-    return res
-      .status(404)
-      .send("The product with the given slug could not be found");
+router.get("/search", async (req, res) => {
+  
+  const searchTerm = req.query.query;
 
-  // Calculate the discounted price during the GET request
-  const discountedPrice = parseFloat(
-    (product.price - (product.price * product.discount) / 100).toFixed(2)
-  );
+  if (!searchTerm) {
+    return res.status(400).json({ error: "Search term is missing." });
+  }
 
-  // Calculate the saved amount, rounded to two decimal places
-  const savedAmount = parseFloat((product.price - discountedPrice).toFixed(2));
+  // Use a case-insensitive regex to find products with titles matching the search term
+  const searchResults = await Product.find({
+    title: { $regex: new RegExp(searchTerm, "i") },
+  });
 
-  // Include the discounted price and saved amount in the response
-  res.send({ ...product.toObject(), discountedPrice, savedAmount });
+  // If no results are found, return an empty array
+  if (!searchResults || searchResults.length === 0) {
+    return res.status(404).json({ message: "No matching products found." });
+  }
+
+  // Calculate discountedPrice and discount for each product
+  const productsWithDiscount = searchResults.map((product) => {
+    const discountedPrice =
+      product.price - (product.price * product.discount) / 100;
+    return {
+      ...product._doc,
+      discountedPrice,
+    };
+  });
+
+  // Prepare the final response with search term and matching products
+  const response = {
+    searchTerm,
+    products: productsWithDiscount,
+  };
+
+  console.log(response)
+  // Return the response
+  res.status(200).json(response);
+
 });
+
+module.exports = router;
+
 
 // Slug Route
 router.put("/slug/:id", async (req, res) => {
@@ -317,4 +341,25 @@ router.put("/slug/:id", async (req, res) => {
   res.json(product);
 });
 
-module.exports = router;
+
+
+
+router.get("/:slug", async (req, res) => {
+  const product = await Product.findOne({ slug: req.params.slug });
+
+  if (!product)
+    return res
+      .status(404)
+      .send("The product with the given slug could not be found");
+
+  // Calculate the discounted price during the GET request
+  const discountedPrice = parseFloat(
+    (product.price - (product.price * product.discount) / 100).toFixed(2)
+  );
+
+  // Calculate the saved amount, rounded to two decimal places
+  const savedAmount = parseFloat((product.price - discountedPrice).toFixed(2));
+
+  // Include the discounted price and saved amount in the response
+  res.send({ ...product.toObject(), discountedPrice, savedAmount });
+});
